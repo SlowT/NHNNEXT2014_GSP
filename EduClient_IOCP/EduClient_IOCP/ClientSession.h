@@ -1,0 +1,145 @@
+#pragma once
+#include "ObjectPool.h"
+#include "MemoryPool.h"
+#include "CircularBuffer.h"
+#include "Player.h"
+#include "XTL.h"
+
+#define BUFSIZE	65536
+
+class ClientSession ;
+class SessionManager;
+
+enum IOType
+{
+	IO_NONE,
+	IO_SEND,
+	IO_RECV,
+	IO_RECV_ZERO,
+	IO_ACCEPT,
+	IO_DISCONNECT,
+	IO_CONNECT
+} ;
+
+enum DisconnectReason
+{
+	DR_NONE,
+	DR_ACTIVE,
+	DR_ONCONNECT_ERROR,
+	DR_IO_REQUEST_ERROR,
+	DR_COMPLETION_ERROR,
+	DR_SENDFLUSH_ERROR
+};
+
+struct OverlappedIOContext
+{
+	OverlappedIOContext(ClientSession* owner, IOType ioType);
+
+	OVERLAPPED		mOverlapped ;
+	ClientSession*	mSessionObject ;
+	IOType			mIoType ;
+	WSABUF			mWsaBuf;
+	
+} ;
+
+//TODO: 아래의 OverlappedXXXXContext는 ObjectPool<>을 사용하도록 수정
+
+struct OverlappedSendContext : public OverlappedIOContext, ObjectPool<OverlappedSendContext>
+{
+	OverlappedSendContext(ClientSession* owner) : OverlappedIOContext(owner, IO_SEND)
+	{
+	}
+};
+
+struct OverlappedRecvContext : public OverlappedIOContext, ObjectPool<OverlappedRecvContext>
+{
+	OverlappedRecvContext(ClientSession* owner) : OverlappedIOContext(owner, IO_RECV)
+	{
+	}
+};
+
+struct OverlappedPreRecvContext : public OverlappedIOContext, ObjectPool<OverlappedPreRecvContext>
+{
+	OverlappedPreRecvContext(ClientSession* owner) : OverlappedIOContext(owner, IO_RECV_ZERO)
+	{
+	}
+};
+
+struct OverlappedDisconnectContext : public OverlappedIOContext, ObjectPool<OverlappedDisconnectContext>
+{
+	OverlappedDisconnectContext(ClientSession* owner, DisconnectReason dr) 
+	: OverlappedIOContext(owner, IO_DISCONNECT), mDisconnectReason(dr)
+	{}
+
+	DisconnectReason mDisconnectReason;
+};
+
+struct OverlappedAcceptContext : public OverlappedIOContext, ObjectPool<OverlappedAcceptContext>
+{
+	OverlappedAcceptContext(ClientSession* owner) : OverlappedIOContext(owner, IO_ACCEPT)
+	{}
+};
+
+struct OverlappedConnectContext : public OverlappedIOContext, ObjectPool < OverlappedAcceptContext >
+{
+	OverlappedConnectContext( ClientSession* owner ) : OverlappedIOContext( owner, IO_CONNECT )
+	{}
+};
+
+
+void DeleteIoContext(OverlappedIOContext* context) ;
+
+//TODO: 아래의 ClientSession은 xnew/xdelete사용 가능하도록 클래스 정의 부분 수정
+class ClientSession : PooledAllocatable
+{
+public:
+	ClientSession();
+	~ClientSession() {}
+
+	void	SessionReset();
+
+	bool	IsConnected() const { return !!mConnected; }
+
+	bool	PostConnect();
+	void	ConnectCompletion();
+
+	bool	PreRecv() ; ///< zero byte recv
+
+	bool	PostRecv();
+	void	RecvCompletion(DWORD transferred);
+
+	bool	PostSend( const char* data, size_t len );
+	bool	FlushSend();
+	void	SendCompletion(DWORD transferred);
+	
+	void	DisconnectRequest(DisconnectReason dr);
+	void	DisconnectCompletion(DisconnectReason dr);
+	
+	void	AddRef();
+	void	ReleaseRef();
+
+	void	SetSocket(SOCKET sock) { mSocket = sock; }
+	SOCKET	GetSocket() const { return mSocket;  }
+
+public:
+	Player			mPlayer;
+
+private:
+	SOCKET			mSocket;
+
+	SOCKADDR_IN		mClientAddr;
+		
+	FastSpinlock	mSendBufferLock;
+	int				mSendPendingCount;
+
+	CircularBuffer	mRecvBuffer;
+	CircularBuffer	mSendBuffer;
+
+	volatile long	mRefCount;
+	volatile long	mConnected;
+
+	friend class SessionManager;
+} ;
+
+extern __declspec(thread) xdeque<ClientSession*>::type* LSendRequestSessionList;
+
