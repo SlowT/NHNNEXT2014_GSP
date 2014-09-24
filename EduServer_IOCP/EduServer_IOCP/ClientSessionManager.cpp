@@ -39,7 +39,6 @@ void ClientSessionManager::ReturnClientSession(ClientSession* client)
 
 	CRASH_ASSERT(client->mConnected == 0 && client->mRefCount == 0);
 
-	client->mPlayer.RequestUpdateLogoutPosition();
 	client->SessionReset();
 
 	mFreeSessionList.push_back(client);

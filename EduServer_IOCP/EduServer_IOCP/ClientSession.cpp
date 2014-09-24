@@ -172,6 +172,8 @@ void ClientSession::OnDisconnect(DisconnectReason dr)
 	TRACE_THIS;
 
 	printf_s("[DEBUG] Client Disconnected: Reason=%d IP=%s, PORT=%d \n", dr, inet_ntoa(mClientAddr.sin_addr), ntohs(mClientAddr.sin_port));
+
+	mPlayer.RequestUpdateLogoutPosition();
 }
 
 void ClientSession::OnRelease()

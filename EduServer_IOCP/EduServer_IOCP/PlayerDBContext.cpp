@@ -165,10 +165,6 @@ bool UpdatePlayerLogoutPositionContext::OnSQLExecute()
 	return false;
 }
 
-UpdatePlayerLogoutPositionContext::~UpdatePlayerLogoutPositionContext()
-{
-	mSessionObject->AddRef();// 임시해결첵
-}
 
 
 bool UpdatePlayerCommentContext::OnSQLExecute()

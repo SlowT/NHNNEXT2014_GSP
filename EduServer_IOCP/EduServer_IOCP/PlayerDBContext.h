@@ -94,7 +94,6 @@ struct UpdatePlayerLogoutPositionContext : public DatabaseJobContext, public Obj
 		, mPlayerId( pid ), mPosX( 0 ), mPosY( 0 ), mPosZ( 0 )
 	{
 	}
-	~UpdatePlayerLogoutPositionContext();
 
 	virtual bool OnSQLExecute();
 	virtual void OnSuccess() {};
