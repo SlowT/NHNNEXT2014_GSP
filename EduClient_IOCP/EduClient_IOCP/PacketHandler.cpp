@@ -4,6 +4,7 @@
 #include "PlayerManager.h"
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
+#include <google/protobuf/stubs/common.h>
 
 PacketHandler* GPacketHandler = nullptr;
 
@@ -32,10 +33,14 @@ void PacketHandler::RecvPacketProcess( ClientSession& remote, const unsigned cha
 	while( inputStream.ReadRaw( &header, MessageHeaderSize ) )
 	{
 		// 직접 억세스 할수 있는 버퍼 포인터와 남은 길이를 알아냄
-		const void* payload_ptr = NULL;
-		int remainSize = inputStream.BytesUntilLimit();
-		if( remainSize < (signed)header.size )
+		const void* payload_ptr = nullptr;
+		int payloadSize = 0;
+
+		inputStream.GetDirectBufferPointer( &payload_ptr, &payloadSize );
+		if( payloadSize < (signed)header.size )
 			break;
+
+		google::protobuf::io::CodedInputStream payLoadStream((const google::protobuf::uint8*)payload_ptr, header.size);
 
 		// 메세지 종류별로 역직렬화해서 적절한 메서드를 호출해줌
 		switch( header.type )
@@ -43,7 +48,7 @@ void PacketHandler::RecvPacketProcess( ClientSession& remote, const unsigned cha
 		case ClientPacket::PKT_SC_MOVE:
 		{
 			ClientPacket::MoveResult message;
-			if( false == message.ParseFromCodedStream( &inputStream ) )
+			if( false == message.ParseFromCodedStream( &payLoadStream ) )
 				break;
 
 			int pid = message.playerid();
@@ -54,7 +59,7 @@ void PacketHandler::RecvPacketProcess( ClientSession& remote, const unsigned cha
 		case ClientPacket::PKT_SC_CHAT:
 		{
 			ClientPacket::ChatResult message;
-			if( false == message.ParseFromCodedStream( &inputStream ) )
+			if( false == message.ParseFromCodedStream( &payLoadStream ) )
 				break;
 
 			const std::string& name = message.playername();
@@ -65,7 +70,7 @@ void PacketHandler::RecvPacketProcess( ClientSession& remote, const unsigned cha
 		case ClientPacket::PKT_SC_LOGIN:
 		{
 			ClientPacket::LoginResult message;
-			if( false == message.ParseFromCodedStream( &inputStream ) )
+			if( false == message.ParseFromCodedStream( &payLoadStream ) )
 				break;
 
 			int pid = message.playerid();
@@ -77,13 +82,13 @@ void PacketHandler::RecvPacketProcess( ClientSession& remote, const unsigned cha
 		case ClientPacket::PKT_SC_SIGHT:
 		{
 			ClientPacket::SightResult message;
-			if( false == message.ParseFromCodedStream( &inputStream ) )
+			if( false == message.ParseFromCodedStream( &payLoadStream ) )
 				break;
 
 			InSightPlayers& tList = remote.mPlayer.GetInSightList();
 			tList.clear();
 			InSightPlayer tPlayer;
-			for( int i = 0; i < message.insightplayer_size(); ++i ){
+			for( int i = 0; i < (message.insightplayer_size()>90 ? 90 : message.insightplayer_size()); ++i){// 94넘어가면 터짐...;
 				const ClientPacket::SightResult::InSightPlayer& tSrcPlayer = message.insightplayer(i);
 
 				tPlayer.name = tSrcPlayer.playername();
@@ -97,6 +102,7 @@ void PacketHandler::RecvPacketProcess( ClientSession& remote, const unsigned cha
 		}
 			break;
 		}
+		inputStream.Skip( header.size );
 	}
 }
 

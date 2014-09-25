@@ -31,7 +31,7 @@ private:
 
 	// for test ----
 	PlayerList mPlayerList;
-	volatile long mUserIdCount;
+	long mUserIdCount;
 	// ---- for test
 };
 

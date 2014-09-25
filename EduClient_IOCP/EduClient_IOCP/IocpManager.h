@@ -50,7 +50,7 @@ private:
 extern __declspec(thread) int LIoThreadId;
 extern __declspec(thread) int64_t LTickCount;
 extern IocpManager* GIocpManager;
-extern long GSengJobThreadCount;
+extern long GSendJobThreadCount;
 
 BOOL DisconnectEx(SOCKET hSocket, LPOVERLAPPED lpOverlapped, DWORD dwFlags, DWORD reserved);
 

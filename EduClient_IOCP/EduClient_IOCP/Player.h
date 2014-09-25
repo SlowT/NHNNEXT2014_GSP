@@ -4,10 +4,6 @@
 #include "XTL.h"
 #include <array>
 
-#define PLAYER_MOVE_SPEED 0.5f
-#define PLAYER_CHAT_CHANCE 5 //ÆÛ¼¾Æ®
-
-
 struct Position
 {
 	float x;

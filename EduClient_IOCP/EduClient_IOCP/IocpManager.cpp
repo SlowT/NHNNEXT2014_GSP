@@ -11,7 +11,7 @@
 __declspec(thread) int LIoThreadId = 0;
 __declspec(thread) int64_t LTickCount = 0;
 IocpManager* GIocpManager = nullptr;
-long GSengJobThreadCount = 0;
+long GSendJobThreadCount = 0;
 
 LPFN_DISCONNECTEX IocpManager::mFnDisconnectEx = nullptr;
 LPFN_CONNECTEX IocpManager::mFnConnectEx = nullptr;
@@ -133,15 +133,17 @@ unsigned int WINAPI IocpManager::IoWorkerThread(LPVOID lpParam)
 	LSendRequestSessionList = new xdeque<ClientSession*>::type();
 	LTimer = new Timer;
 
+	std::srand( GetTickCount() + LIoThreadId );
+
 	while (true)
 	{
 		LTimer->DoTimerJob();
 
 		GIocpManager->DoIocpJob();
 
-		if( InterlockedIncrement( &GSengJobThreadCount ) < GIocpManager->mIoThreadCount )
+		if( InterlockedIncrement( &GSendJobThreadCount ) < GIocpManager->mIoThreadCount )
 			GIocpManager->DoSendJob();
-		InterlockedDecrement( &GSengJobThreadCount );
+		InterlockedDecrement( &GSendJobThreadCount );
 	}
 
 	delete LSendRequestSessionList;

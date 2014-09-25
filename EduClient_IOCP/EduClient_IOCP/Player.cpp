@@ -4,6 +4,7 @@
 #include "PlayerManager.h"
 #include "PacketHandler.h"
 #include "Timer.h"
+#include "EduClient_IOCP.h"
 
 Player::Player(ClientSession* session) : mSession(session), mSightRadius(100.f)
 {
@@ -66,6 +67,14 @@ void Player::ResultLoad( int pid, const std::string& playerName, float x, float 
 	GPlayerManager->RegisterPlayer( this );
 
 	printf_s( "[LOG] %s is loaded.\n", mPlayerName );
+
+	if( x == 0.f && y == 0.f && z == 0.f ){
+		x = (rand() % 2000) * (rand() % 2 - 1);
+		z = (rand() % 2000) * (rand() % 2 - 1);
+
+		RequestMoveTo( x, 0, z );
+	}
+		
 
 	LTimer->PushTimerJob( this, 1000 );
 }

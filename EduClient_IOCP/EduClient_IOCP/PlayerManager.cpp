@@ -1,10 +1,11 @@
 #include "stdafx.h"
 #include "Player.h"
 #include "PlayerManager.h"
+#include "EduClient_IOCP.h"
 
 PlayerManager* GPlayerManager = nullptr;
 
-PlayerManager::PlayerManager() : mLock(), mCurrentIssueId(0), mUserIdCount(100)
+PlayerManager::PlayerManager() : mLock(), mCurrentIssueId( 0 ), mUserIdCount( FIRST_PLAYER_ID-1 )
 {
 
 }
