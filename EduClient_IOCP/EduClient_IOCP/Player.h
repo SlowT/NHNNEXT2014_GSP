@@ -25,7 +25,7 @@ typedef xvector<InSightPlayer>::type InSightPlayers;
 
 class ClientSession;
 
-class Player : public std::enable_shared_from_this<Player>
+class Player
 {
 public:
 	Player(ClientSession* session);
@@ -41,7 +41,7 @@ public:
 	void ResultLoad( int pid, const std::string& playerName, float x, float y, float z );
 	void ResultMoveTo( int pid, float x, float y, float z );
 	void ResultChat( const std::string& playerName, const std::string& playerMessage );
-// 	void ResultSight( InSightPlayers& inSightList );
+	void ResultSight();
 
 	void OnTick();
 

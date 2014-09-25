@@ -9,8 +9,9 @@ PacketHandler* GPacketHandler = nullptr;
 
 struct MessageHeader
 {
-	google::protobuf::uint32 size;
-	ClientPacket::MessageType type;
+	MessageHeader() : size( 0 ), type( -1 ) {}
+	short size;
+	short type;
 };
 const size_t MessageHeaderSize = sizeof( MessageHeader );
 

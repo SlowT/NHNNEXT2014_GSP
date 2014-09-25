@@ -66,6 +66,9 @@
     <ClInclude Include="PacketHandler.h">
       <Filter>Packet</Filter>
     </ClInclude>
+    <ClInclude Include="Timer.h">
+      <Filter>Util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ClientSession.cpp">
@@ -106,6 +109,9 @@
     </ClCompile>
     <ClCompile Include="PacketHandler.cpp">
       <Filter>Packet</Filter>
+    </ClCompile>
+    <ClCompile Include="Timer.cpp">
+      <Filter>Util</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

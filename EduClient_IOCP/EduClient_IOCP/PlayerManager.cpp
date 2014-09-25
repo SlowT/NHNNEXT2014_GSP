@@ -9,7 +9,7 @@ PlayerManager::PlayerManager() : mLock(), mCurrentIssueId(0), mUserIdCount(100)
 
 }
 
-int PlayerManager::RegisterPlayer( std::shared_ptr<Player> player )
+int PlayerManager::RegisterPlayer( Player* player )
 {
 	FastSpinlockGuard exclusive(mLock);
 
@@ -40,4 +40,3 @@ int PlayerManager::GetCurrentPlayers(PlayerList& outList)
 
 	return total;
 }
-

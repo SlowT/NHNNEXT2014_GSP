@@ -2,7 +2,7 @@
 
 #define SERVER_ADDR		"127.0.0.1"
 #define SERVER_PORT		9001
-#define MAX_CONNECTION	1
+#define MAX_CONNECTION	12
 #define CONNECT_TIME	60000
 
 enum THREAD_TYPE

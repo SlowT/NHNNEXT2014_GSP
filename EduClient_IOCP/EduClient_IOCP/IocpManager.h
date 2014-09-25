@@ -1,4 +1,5 @@
 #pragma once
+#include "XTL.h"
 
 class ClientSession;
 
@@ -33,18 +34,23 @@ public:
 private:
 
 	static unsigned int WINAPI IoWorkerThread(LPVOID lpParam);
+	void DoIocpJob();
+	void DoSendJob();
 
 private:
 
 	HANDLE	mCompletionPort;
 	int		mIoThreadCount;
+	xvector<HANDLE>::type	mThreadHandleList;
 
 	SOCKET	mTmpSocket;
 	SOCKADDR_IN mServerAddr;
 };
 
 extern __declspec(thread) int LIoThreadId;
+extern __declspec(thread) int64_t LTickCount;
 extern IocpManager* GIocpManager;
+extern long GSengJobThreadCount;
 
 BOOL DisconnectEx(SOCKET hSocket, LPOVERLAPPED lpOverlapped, DWORD dwFlags, DWORD reserved);
 

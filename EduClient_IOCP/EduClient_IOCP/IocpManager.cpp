@@ -4,11 +4,14 @@
 #include "EduClient_IOCP.h"
 #include "ClientSession.h"
 #include "SessionManager.h"
+#include "Timer.h"
 
 #define GQCS_TIMEOUT	20
 
 __declspec(thread) int LIoThreadId = 0;
+__declspec(thread) int64_t LTickCount = 0;
 IocpManager* GIocpManager = nullptr;
+long GSengJobThreadCount = 0;
 
 LPFN_DISCONNECTEX IocpManager::mFnDisconnectEx = nullptr;
 LPFN_CONNECTEX IocpManager::mFnConnectEx = nullptr;
@@ -90,6 +93,7 @@ bool IocpManager::StartIoThreads()
 		HANDLE hThread = (HANDLE)_beginthreadex(NULL, 0, IoWorkerThread, (LPVOID)(i+1), 0, (unsigned int*)&dwThreadId);
 		if (hThread == NULL)
 			return false;
+		mThreadHandleList.push_back( hThread );
 	}
 
 	return true;
@@ -127,108 +131,126 @@ unsigned int WINAPI IocpManager::IoWorkerThread(LPVOID lpParam)
 
 	LIoThreadId = reinterpret_cast<int>(lpParam);
 	LSendRequestSessionList = new xdeque<ClientSession*>::type();
-
-	HANDLE hComletionPort = GIocpManager->GetComletionPort();
+	LTimer = new Timer;
 
 	while (true)
 	{
-		DWORD dwTransferred = 0;
-		LPOVERLAPPED overlapped = nullptr;
+		LTimer->DoTimerJob();
 
-		ULONG_PTR completionKey = 0;
+		GIocpManager->DoIocpJob();
 
-		int ret = GetQueuedCompletionStatus( hComletionPort, &dwTransferred, (PULONG_PTR)&completionKey, &overlapped, GQCS_TIMEOUT );
-
-		OverlappedIOContext* context = reinterpret_cast<OverlappedIOContext*>(overlapped);
-
-		ClientSession* remote = context ? context->mSessionObject : nullptr;
-
-		if( ret == 0 || dwTransferred == 0 )
-		{
-			/// check time out first 
-			if( context == nullptr && GetLastError() == WAIT_TIMEOUT )
-				return 0;
-
-
-			if( context->mIoType == IO_RECV || context->mIoType == IO_SEND )
-			{
-				CRASH_ASSERT( nullptr != remote );
-
-				/// In most cases in here: ERROR_NETNAME_DELETED(64)
-
-				remote->DisconnectRequest( DR_COMPLETION_ERROR );
-
-				DeleteIoContext( context );
-
-				return 0;
-			}
-		}
-
-		CRASH_ASSERT( nullptr != remote );
-
-		bool completionOk = false;
-		switch( context->mIoType )
-		{
-		case IO_DISCONNECT:
-			remote->DisconnectCompletion( static_cast<OverlappedDisconnectContext*>(context)->mDisconnectReason );
-			completionOk = true;
-			break;
-
-		case IO_CONNECT:
-			remote->ConnectCompletion();
-			completionOk = true;
-			break;
-
-		case IO_RECV_ZERO:
-			completionOk = remote->PostRecv();
-			break;
-
-		case IO_SEND:
-			remote->SendCompletion( dwTransferred );
-
-			if( context->mWsaBuf.len != dwTransferred )
-				printf_s( "Partial SendCompletion requested [%d], sent [%d]\n", context->mWsaBuf.len, dwTransferred );
-			else
-				completionOk = true;
-
-			break;
-
-		case IO_RECV:
-			remote->RecvCompletion( dwTransferred );
-
-			completionOk = remote->PreRecv();
-
-			break;
-
-		default:
-			printf_s( "Unknown I/O Type: %d\n", context->mIoType );
-			CRASH_ASSERT( false );
-			break;
-		}
-
-		if( !completionOk )
-		{
-			/// connection closing
-			remote->DisconnectRequest( DR_IO_REQUEST_ERROR );
-		}
-
-		DeleteIoContext( context );
-
-
-		//Send Job
-		while( !LSendRequestSessionList->empty() )
-		{
-			auto& session = LSendRequestSessionList->front();
-
-			if( session->FlushSend() )
-			{
-				/// true 리턴 되면 빼버린다.
-				LSendRequestSessionList->pop_front();
-			}
-		}
+		if( InterlockedIncrement( &GSengJobThreadCount ) < GIocpManager->mIoThreadCount )
+			GIocpManager->DoSendJob();
+		InterlockedDecrement( &GSengJobThreadCount );
 	}
 
 	delete LSendRequestSessionList;
 	return 0;
 }
 
+void IocpManager::DoIocpJob()
+{
+	DWORD dwTransferred = 0;
+	LPOVERLAPPED overlapped = nullptr;
+
+	ULONG_PTR completionKey = 0;
+
+	int ret = GetQueuedCompletionStatus( mCompletionPort, &dwTransferred, (PULONG_PTR)&completionKey, &overlapped, GQCS_TIMEOUT );
+
+	OverlappedIOContext* context = reinterpret_cast<OverlappedIOContext*>(overlapped);
+
+	ClientSession* remote = context ? context->mSessionObject : nullptr;
+
+	if( ret == 0 || dwTransferred == 0 )
+	{
+		int gle = GetLastError();
+		/// check time out first 
+		if( context == nullptr && gle == WAIT_TIMEOUT )
+			return;
+
+		if( gle == ERROR_ABANDONED_WAIT_0 || gle == ERROR_INVALID_HANDLE ){ // 무언가의 이유로 IOCP가 종료. 보통 프로그램 종료중일듯.
+			DWORD dwExitCode;
+			GetExitCodeThread( mThreadHandleList[LIoThreadId-1], &dwExitCode );
+			ExitThread( dwExitCode );
+		}
+
+		if( context->mIoType == IO_RECV || context->mIoType == IO_SEND )
+		{
+			CRASH_ASSERT( nullptr != remote );
+
+			/// In most cases in here: ERROR_NETNAME_DELETED(64)
+
+			remote->DisconnectRequest( DR_COMPLETION_ERROR );
+
+			DeleteIoContext( context );
+
+			return;
+		}
+	}
+
+	CRASH_ASSERT( nullptr != remote );
+
+	bool completionOk = false;
+	switch( context->mIoType )
+	{
+	case IO_DISCONNECT:
+		remote->DisconnectCompletion( static_cast<OverlappedDisconnectContext*>(context)->mDisconnectReason );
+		completionOk = true;
+		break;
+
+	case IO_CONNECT:
+		remote->ConnectCompletion();
+		completionOk = true;
+		break;
+
+	case IO_RECV_ZERO:
+		completionOk = remote->PostRecv();
+		break;
+
+	case IO_SEND:
+		remote->SendCompletion( dwTransferred );
+
+		if( context->mWsaBuf.len != dwTransferred )
+			printf_s( "Partial SendCompletion requested [%d], sent [%d]\n", context->mWsaBuf.len, dwTransferred );
+		else
+			completionOk = true;
+
+		break;
+
+	case IO_RECV:
+		remote->RecvCompletion( dwTransferred );
+
+		completionOk = remote->PreRecv();
+
+		break;
+
+	default:
+		printf_s( "Unknown I/O Type: %d\n", context->mIoType );
+		CRASH_ASSERT( false );
+		break;
+	}
+
+	if( !completionOk )
+	{
+		/// connection closing
+		remote->DisconnectRequest( DR_IO_REQUEST_ERROR );
+	}
+
+	DeleteIoContext( context );
+}
+
+void IocpManager::DoSendJob()
+{
+	
+	while( !LSendRequestSessionList->empty() )
+	{
+		auto& session = LSendRequestSessionList->front();
+
+		if( session->FlushSend() )
+		{
+			/// true 리턴 되면 빼버린다.
+			LSendRequestSessionList->pop_front();
+		}
+	}
+	
+}

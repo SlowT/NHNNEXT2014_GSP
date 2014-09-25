@@ -3,6 +3,7 @@
 #include "Player.h"
 #include "PlayerManager.h"
 #include "PacketHandler.h"
+#include "Timer.h"
 
 Player::Player(ClientSession* session) : mSession(session), mSightRadius(100.f)
 {
@@ -11,7 +12,7 @@ Player::Player(ClientSession* session) : mSession(session), mSightRadius(100.f)
 	chatMessages.push_back( std::string( "ㅎㅇ" ) );
 	chatMessages.push_back( std::string( "누구세요?" ) );
 	chatMessages.push_back( std::string( "신급 레이드 [DongChan] 가실분 모집중!" ) );
-	chatMessages.push_back( std::string( "**, ** 발로 코딩했냐. 영자 나와라" ) );
+	chatMessages.push_back( std::string( "렉봐라. 발로 코딩했냐. 영자 나와라!" ) );
 	chatMessages.push_back( std::string( "자네, 거기 비누 좀 주워주지 않겠나?" ) );
 	chatMessages.push_back( std::string( "어, 사람 잘못 봤네요." ) );
 }
@@ -62,9 +63,11 @@ void Player::ResultLoad( int pid, const std::string& playerName, float x, float 
 	mPos.y = y;
 	mPos.z = z;
 
-	GPlayerManager->RegisterPlayer( shared_from_this() );
+	GPlayerManager->RegisterPlayer( this );
 
 	printf_s( "[LOG] %s is loaded.\n", mPlayerName );
+
+	LTimer->PushTimerJob( this, 1000 );
 }
 
 void Player::ResultMoveTo( int pid, float x, float y, float z )
@@ -104,14 +107,16 @@ void Player::OnTick()
 	}
 
 	if( std::rand() % 100 < PLAYER_CHAT_CHANCE)	{
-		if( mInSightPlayers.size() > 0 ){
-			int i = rand() % chatMessages.size();
-			RequestChat( chatMessages[i] );
-		}
+		RequestSight( mPlayerId );
 	}
+
+	LTimer->PushTimerJob( this, 100 );
 }
 
-// void Player::ResultSight( InSightPlayers& inSightList )
-// {
-// 	mInSightPlayers = inSightList;
-// }
+void Player::ResultSight()
+{
+	if( mInSightPlayers.size() > 0 ){
+		int i = rand() % chatMessages.size();
+		RequestChat( chatMessages[i] );
+	}
+}

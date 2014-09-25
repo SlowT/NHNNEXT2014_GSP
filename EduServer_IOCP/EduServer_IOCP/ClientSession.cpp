@@ -155,7 +155,7 @@ void ClientSession::RecvCompletion( DWORD transferred )
 
 	mRecvBuffer.Commit( transferred );
 
-	GPacketHandler->RecvPacketProcess( *this, (const unsigned char*)mRecvBuffer.GetBufferStart(), transferred );
+	GPacketHandler->RecvPacketProcess( *this, (const unsigned char*)mRecvBuffer.GetBufferStart(), mRecvBuffer.GetContiguiousBytes() );
 
 	mRecvBuffer.Remove( transferred ); //TODO: recvBufferLock 없어도 되나?;
 

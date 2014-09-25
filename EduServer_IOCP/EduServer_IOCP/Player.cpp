@@ -48,6 +48,12 @@ void Player::ResponseLoad(int pid, float x, float y, float z, bool valid, wchar_
 
 	GPlayerManager->RegisterPlayer( this );
 	wprintf_s(L"PID[%d], X[%f] Y[%f] Z[%f] NAME[%s] COMMENT[%s]\n", mPlayerId, mPosX, mPosY, mPosZ, mPlayerName, mComment);
+
+	ClientPacket::Position tPos;
+	tPos.set_x( mPosX );
+	tPos.set_y( mPosY );
+	tPos.set_z( mPosZ );
+	GPacketHandler->SendLoginResult( *mSession, mPlayerId, std::string(&mPlayerName[0], &mPlayerName[MAX_NAME_LEN-1]), tPos );
 }
 
 void Player::RequestUpdatePosition(float x, float y, float z)

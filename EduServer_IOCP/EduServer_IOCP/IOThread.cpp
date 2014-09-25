@@ -126,7 +126,7 @@ void IOThread::DoIocpJob()
 		/// for test
 // 		remote->EchoBack();
 		
-// 		completionOk = remote->PreRecv();
+		completionOk = remote->PreRecv();
 
 		break;
 

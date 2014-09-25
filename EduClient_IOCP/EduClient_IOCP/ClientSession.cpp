@@ -17,7 +17,7 @@ OverlappedIOContext::OverlappedIOContext(ClientSession* owner, IOType ioType)
 	mSessionObject->AddRef();
 }
 
-ClientSession::ClientSession() : mSendBuffer( BUFSIZE ), mRecvBuffer( BUFSIZE ), mConnected( 0 ), mRefCount( 0 ), mPlayer( this )
+ClientSession::ClientSession() : mSendBuffer( BUFSIZE ), mRecvBuffer( BUFSIZE ), mConnected( 0 ), mRefCount( 0 ), mPlayer( this ), mSendPendingCount( 0 )
 {
 	memset(&mClientAddr, 0, sizeof(SOCKADDR_IN));
 	mClientAddr.sin_family = AF_INET;
@@ -234,7 +234,7 @@ void ClientSession::RecvCompletion(DWORD transferred)
 {
 	mRecvBuffer.Commit(transferred);
 
-	GPacketHandler->RecvPacketProcess( *this, reinterpret_cast<const unsigned char*>(mRecvBuffer.GetBufferStart()), transferred );
+	GPacketHandler->RecvPacketProcess( *this, reinterpret_cast<const unsigned char*>(mRecvBuffer.GetBufferStart()), mRecvBuffer.GetContiguiousBytes() );
 
 	mRecvBuffer.Remove( transferred );
 }
