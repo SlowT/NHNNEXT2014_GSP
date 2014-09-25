@@ -20,14 +20,13 @@ IOThread::~IOThread()
 
 DWORD IOThread::Run()
 {
-
 	while (true)
 	{
 		DoIocpJob();
 
-		DoSendJob(); ///< aggregated sends
-
-		//... ...
+		if( InterlockedIncrement( &GSendJobThreadCount ) < MAX_IO_THREAD )
+			DoSendJob();
+		InterlockedDecrement( &GSendJobThreadCount );
 	}
 
 	delete LSendRequestSessionList;

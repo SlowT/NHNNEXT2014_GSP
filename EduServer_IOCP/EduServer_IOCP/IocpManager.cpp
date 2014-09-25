@@ -11,6 +11,7 @@
 
 
 IocpManager* GIocpManager = nullptr;
+long GSendJobThreadCount = 0;
 
 LPFN_DISCONNECTEX IocpManager::mFnDisconnectEx = nullptr;
 LPFN_ACCEPTEX IocpManager::mFnAcceptEx = nullptr;

@@ -32,10 +32,14 @@ void PacketHandler::RecvPacketProcess( ClientSession& remote, const unsigned cha
 	while( inputStream.ReadRaw( &header, MessageHeaderSize ) )
 	{
 		// 직접 억세스 할수 있는 버퍼 포인터와 남은 길이를 알아냄
-		const void* payload_ptr = NULL;
-		int remainSize = inputStream.BytesUntilLimit();
-		if( remainSize < (signed)header.size )
+		const void* payload_ptr = nullptr;
+		int payloadSize = 0;
+
+		inputStream.GetDirectBufferPointer( &payload_ptr, &payloadSize );
+		if( payloadSize < (signed)header.size )
 			break;
+
+		google::protobuf::io::CodedInputStream payLoadStream( (const google::protobuf::uint8*)payload_ptr, header.size );
 
 		// 메세지 종류별로 역직렬화해서 적절한 메서드를 호출해줌
 		switch( header.type )
@@ -43,7 +47,7 @@ void PacketHandler::RecvPacketProcess( ClientSession& remote, const unsigned cha
 		case ClientPacket::PKT_CS_MOVE:
 		{
 			ClientPacket::MoveRequest message;
-			if( false == message.ParseFromCodedStream( &inputStream ) )
+			if( false == message.ParseFromCodedStream( &payLoadStream ) )
 				break;
 
 			if( message.playerid() != remote.mPlayer.GetPlayerId() ) // 통신 중인 세션의 플레이어와 패킷의 플레이어가 같아야 정상이다.
@@ -56,7 +60,7 @@ void PacketHandler::RecvPacketProcess( ClientSession& remote, const unsigned cha
 		case ClientPacket::PKT_CS_SIGHT:
 		{
 			ClientPacket::SightRequest message;
-			if( false == message.ParseFromCodedStream( &inputStream ) )
+			if( false == message.ParseFromCodedStream( &payLoadStream ) )
 				break;
 
 			if( message.playerid() != remote.mPlayer.GetPlayerId() )
@@ -70,7 +74,7 @@ void PacketHandler::RecvPacketProcess( ClientSession& remote, const unsigned cha
 		case ClientPacket::PKT_CS_CHAT:
 		{
 			ClientPacket::ChatRequest message;
-			if( false == message.ParseFromCodedStream( &inputStream ) )
+			if( false == message.ParseFromCodedStream( &payLoadStream ) )
 				break;
 
 			if( message.playerid() != remote.mPlayer.GetPlayerId() )
@@ -82,14 +86,14 @@ void PacketHandler::RecvPacketProcess( ClientSession& remote, const unsigned cha
 		case ClientPacket::PKT_CS_LOGIN:
 		{
 			ClientPacket::LoginRequest message;
-			if( false == message.ParseFromCodedStream( &inputStream ) )
+			if( false == message.ParseFromCodedStream( &payLoadStream ) )
 				break;
 
 			remote.mPlayer.RequestLoad( message.playerid() );
 		}
 			break;
 		}
-		break;
+		inputStream.Skip( header.size );
 	}
 }
 

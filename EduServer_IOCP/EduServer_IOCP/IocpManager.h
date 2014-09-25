@@ -52,7 +52,7 @@ private:
 
 
 extern IocpManager* GIocpManager;
-
+extern long GSendJobThreadCount;
 
 BOOL DisconnectEx(SOCKET hSocket, LPOVERLAPPED lpOverlapped, DWORD dwFlags, DWORD reserved);
 
